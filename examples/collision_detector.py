@@ -6,6 +6,13 @@ import imutils
 import time
 import cv2
 
+
+# example run args
+# -p model/model_deploy.prototxt.txt -m model/model_deploy.caffemodel -w 600 -d True
+
+IDX_CONFIG_ALL = [2,6,7,14,15]
+IDX_CONFIG_VEHICLES = [2,6,7,14]
+
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-p", "--prototxt", required=True,
@@ -13,38 +20,63 @@ ap.add_argument("-p", "--prototxt", required=True,
 ap.add_argument("-m", "--model", required=True,
                 help="path to Caffe pre-trained model")
 ap.add_argument("-c", "--confidence", type=float, default=0.2,
-                help="minimum probability to filter weak detections")
+                help="minimum probability to filter out unreliable detections")
+ap.add_argument("-w", "--width", type=int, default=600,
+                help="max width of screen to grab")
+ap.add_argument("-d", "--debug", type=bool, default=False,
+                help="show the screen being grabbed, imshow")
+ap.add_argument("-i", "--idxconfig", type=str, default='IDX_CONFIG_ALL',
+                help="choose the IDX_CONFIG to use IDX_CONFIG_ALL for vehicles + person or IDX_CONFIG_VEHICLES for only vehicles")
+
 args = vars(ap.parse_args())
 
-# initialize the list of class labels MobileNet SSD was trained to
-# detect, then generate a set of bounding box colors for each class
+if args["idxconfig"] == 'IDX_CONFIG_ALL':
+    IDX_CONFIG = IDX_CONFIG_ALL
+else:
+    IDX_CONFIG = IDX_CONFIG_VEHICLES
+
+NUM_DIODES = 22
+
+# initialize the list of class labels MobileNet SSD was trained on
 CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat",
            "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
            "dog", "horse", "motorbike", "person", "pottedplant", "sheep",
            "sofa", "train", "tvmonitor"]
 
+# opencv color space BGR - bounding box colors for debugging
+COLORS = {2: (255,255,0),  # bicycle - lightblue
+                 6: (0,128,255),  # orange - bus
+                 7: (0,0,255),  # red - car
+                 14: (0,255,255),  # yellow - motorbike
+                 15: (0,255,0)  # green' - person
+                 }
 
 
-COLORS = np.random.uniform(0, 255, size=(len(CLASSES), 3))
+
+# idx = class_label
+            # 2 = bicycle
+            # 6 = bus
+            # 7 = car
+            # 14 = motorbike
+            # 15 = person
 
 
-NUM_DIODES = 22
-# load our model from disk
+# load  model from file
 print("loading model...")
 net = cv2.dnn.readNetFromCaffe(args["prototxt"], args["model"])
 
 
 def vid_stream():
     # start video
-    # show FPS counter for debug
     print("starting video...")
     stream = VideoStream(src=0).start()
+    # give time to grab a frame
     time.sleep(2.0)
     fps = FPS().start()
     while (True):
         # max width of 600 pixel for video in
         f = stream.read()
-        f = imutils.resize(f, width=600)
+        f = imutils.resize(f, width=args["width"])
 
         (h, w) = f.shape[:2]
         blob = cv2.dnn.blobFromImage(cv2.resize(f, (300, 300)),
@@ -67,60 +99,111 @@ def vid_stream():
                 box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
                 (startX, startY, endX, endY) = box.astype("int")
 
-                # # draw the prediction on the streams cur_frame
-                # label = "{}: {:.2f}%".format(CLASSES[idx],
-                #                              confidence * 100)
-                # cv2.rectangle(f, (startX, startY), (endX, endY),
-                #               COLORS[idx], 2)
-                # y = startY - 15 if startY - 15 > 15 else startY + 15
-                # cv2.putText(f, label, (startX, y),
-                #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLORS[idx], 2)
-            # idx = class_label
-            # 2 = bicycle
-            # 6 = bus
-            # 7 = car
-            # 14 = motorbike
-            # 15 = person
+                # draw_prediction(confidence, endX, endY, f, idx, startX, startY)
 
             # how wide is classified object
             obj_width = endX - startX
             obj_height = endY - startY
 
-            #Car
-            if idx == 2 or idx == 6 or idx == 7 or idx == 14:
+            #if classified object is interesting
+            # if idx == 2 or idx == 6 or idx == 7 or idx == 14 or idx==15:
+            if idx in IDX_CONFIG:
                 # draw the prediction on the streams cur_frame
-                label = "{}: {:.2f}%".format(CLASSES[idx],
-                                             confidence * 100)
-                cv2.rectangle(f, (startX, startY), (endX, endY),
-                              COLORS[idx], 2)
-                y = startY - 15 if startY - 15 > 15 else startY + 15
-                cv2.putText(f, label, (startX, y),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLORS[idx], 2)
+                draw_prediction(confidence, endX, endY, f, idx, startX, startY)
 
-
-                if obj_width >= 1/3 * w:
-                    relay_pos(startX, endX, w)
-                    cv2.putText(f, 'WARNING!!!', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 3)
+                if obj_width >= 1/4 * w:
+                    activate_diodes(startX, endX, w, idx)
+                    draw_warning(f)
 
         # show the output frame
-        cv2.imshow("Output Frame", f)
-        key = cv2.waitKey(1) & 0xFF
+        if args["debug"]:
+            cv2.imshow("Output Frame", f)
+            key = cv2.waitKey(1) & 0xFF
 
-        # if the `q` key was pressed, break from the loop
-        if key == ord("q"):
-            break
+            # if the `q` key was pressed, break from the loop
+            if key == ord("q"):
+                break
 
         # update the FPS counter
         fps.update()
+        fps.stop()
+        print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
 
-    # q
     # do a bit of cleanup
     cv2.destroyAllWindows()
     stream.stop()
 
 
-def relay_pos(startX, endX, w):
-    w/NUM_DIODES
+def draw_warning(f):
+    # draws warning on cv screen
+    cv2.putText(f, 'WARNING!!!', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 3)
+
+
+def draw_prediction(confidence, endX, endY, f, idx, startX, startY):
+    # draw the prediction on the streams cur_frame
+    label = "{}: {:.2f}%".format(CLASSES[idx],
+                                 confidence * 100)
+    cv2.rectangle(f, (startX, startY), (endX, endY),
+                  COLORS[idx], 2)
+    y = startY - 15 if startY - 15 > 15 else startY + 15
+    cv2.putText(f, label, (startX, y),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLORS[idx], 2)
+
+
+def get_color_for_class(idx):
+    # Define colors which will be used by the example.  Each color is an unsigned
+    # 32-bit value where the lower 24 bits define the red, green, blue data (each
+    # being 8 bits long).
+    # DOT_COLORS = [0x200000,  # red
+    #               0x201000,  # orange
+    #               0x202000,  # yellow
+    #               0x002000,  # green
+    #               0x002020,  # lightblue #
+    #               0x000020,  # blue
+    #               0x100010,  # purple
+    #               0x200010]  # pink
+
+    # 2 = bicycle
+    # 6 = bus
+    # 7 = car
+    # 14 = motorbike
+    # 15 = person
+    color_id_dict = {2: '0x002020', #bicycle - lightblue
+     6: '0x201000', #orange - bus
+     7: '0x200000', #red - car
+     14:'0x202000', #yellow - motorbike
+     15: '0x002000' # green' - person
+     }
+
+    return color_id_dict[idx]
+
+
+def activate_diodes(startX, endX, w, idx):
+    #     pass 22 tuples,
+    # (id, color(32 byte rgb))
+
+
+
+    # Brightness 0-255
+    brightness = 255
+
+    width_per_diode = w/NUM_DIODES
+    start_id = startX/width_per_diode
+    end_id = endX/width_per_diode
+    # get the diodes as tuples (i, value on/off)
+    tuple_ls = []
+    color = get_color_for_class(idx)
+    off_color = '0x000000' #black
+
+    for i in range(1,NUM_DIODES + 1):
+        # which diodes to activate
+        if(i> start_id and i < end_id):
+            tuple = (i, color)
+        else:
+            tuple = (i, off_color)
+        tuple_ls.append(tuple)
+
+    #TODO send tuple_ls to diode
 
 
 
@@ -174,10 +257,5 @@ def img_classify(img):
     cv2.destroyAllWindows()
 
 
-# video stream - webcam
-vid_stream()
-# img = 'test_images/test3.jpg'
-# img_classify(img)
 
-# img = 'test_images/test1.jpg'
-# img_classify(img)
+vid_stream()
