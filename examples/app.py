@@ -4,7 +4,10 @@ import io
 from struct import *
 import time
 import RPi.GPIO as GPIO
+import _rpi_ws281x as ws
 from threading import Event , Thread
+
+
 
 #HELLO DEMO
 interrupt=0
@@ -27,7 +30,7 @@ motor = serial.Serial(
     timeout=0.1
 )
 
-bike_status ={}
+bike_status = {'gear': 0, 'light': False}
 bike_control ={'gear': 0, 'light': False}
 
 def destroy():
@@ -62,11 +65,11 @@ def bytes_as_string(b):
 def string_as_bytes(s):
     return str.encode(s)
 
-def motor_read_write(s):
-    screen.write(bytes(s))
-    motordata = motor.readline()
-    print("Motor Data   : " + repr(motordata))
-    return motordata
+#def motor_read_write(s):
+#    screen.write(bytes(s))
+#    motordata = motor.readline()
+#    print("Motor Data   : " + repr(motordata))
+#    return motordata
 
 def validate_response(self, resp, extra_bytes=None):
     """read bytes (already encoded)"""
@@ -91,7 +94,7 @@ def set_gear(level=0):
     gear = gears[level]
     cmd = '\x16\x0b' + gear
     cmd += calc_checksum(cmd)
-    motor.write(string_as_bytes(cmd))
+    n = motor.write(string_as_bytes(cmd))
     if n == len(cmd):
         bike_status['gear'] = level
 
@@ -131,6 +134,11 @@ def parse_data(send_data, rcv_data):
                 # interpolate
                 bike_status['battery'] = values[0]
 
+import cosmo_bike.led_bar as lb
+
+led_bar = lb.LedBar()
+led_bar.init()
+
 
 class SniffThread(Thread):
 
@@ -139,34 +147,37 @@ class SniffThread(Thread):
         Thread.__init__(self)
 
     def run(self):
-        # Read Screen Data
-        screendata = screen.readline()
-        moreBytes = screen.inWaiting()
-        while moreBytes:
-            screendata = screendata + screen.read(moreBytes)
+        while(1):
+            # Read Screen Data
+            screendata = screen.readline()
             moreBytes = screen.inWaiting()
-        # Write to motor
-        motor.write(screendata)
-        # Read Motor Data
-        moreBytes = 0
-        motordata = motor.readline()
-        moreBytes = motor.inWaiting()
-        while moreBytes:
-            motordata = motordata + motor.read(moreBytes)
+            while moreBytes:
+                screendata = screendata + screen.read(moreBytes)
+                moreBytes = screen.inWaiting()
+            # Write to motor
+            motor.write(screendata)
+            # Read Motor Data
+            moreBytes = 0
+            motordata = motor.readline()
             moreBytes = motor.inWaiting()
-        print(moreBytes)
-        # Write to screen
-        screen.write(motordata)
-        print("Motor Data   : " + repr(motordata))
-        print("Screen Data   : " + repr(screendata))
-        print(len(motordata))
-        print(len(screendata))
-        parse_data(motordata, screen)
-        update()
-        # interrupt for thread
-        if interrupt == 1:
-            event.set()
-            # time.sleep(0.1)
+            while moreBytes:
+                motordata = motordata + motor.read(moreBytes)
+                moreBytes = motor.inWaiting()
+            print(moreBytes)
+            # Write to screen
+            screen.write(motordata)
+            print("Motor Data   : " + repr(motordata))
+            print("Screen Data   : " + repr(screendata))
+            print(len(motordata))
+            print(len(screendata))
+            parse_data(motordata, screendata)
+            update()
+            led_bar.run_once()
+
+            # interrupt for thread
+            if interrupt == 1:
+                event.set()
+                # time.sleep(0.1)
 
 
 
