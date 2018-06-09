@@ -1,8 +1,9 @@
 import time
 import datetime
 import RPi.GPIO as GPIO
-from neopixel import *
-import _rpi_ws281x as ws
+#from neopixel import *
+#import _rpi_ws281x as ws
+from blinkstick import blinkstick
 
 # LED configuration.
 LED_CHANNEL    = 0
@@ -29,17 +30,11 @@ DOT_COLORS = [  0x200000,   # red
 
 class LedBar():
     def __init__(self):
-
-        #LEDs
-        # Create a ws2811_t structure from the LED configuration.
-        # Note that this structure will be created on the heap so you need to be careful
-        # that you delete its memory by calling delete_ws2811_t when it's not needed.
-        # Create NeoPixel object with appropriate configuration.
-        strip = Adafruit_NeoPixel(
-            LED_COUNT, LED_GPIO, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS, strip_type=ws.WS2812_STRIP)
-        # Intialize the library (must be called once before other functions).
-        strip.begin()
-        self.strip = strip
+        self.bstick_ls = []
+        for bstick in blinkstick.find_all():
+            bstick.set_random_color()
+            self.bstick_ls.append(bstick)
+            print(bstick.get_serial() + " " + bstick.get_color(color_format="hex"))
         self.timestamp = datetime.datetime.utcnow()
         self.min_t = 250 # millisec
 
@@ -47,6 +42,9 @@ class LedBar():
 
     def set_brightness(self, value):
         self.strip.setBrightness(value)
+        for bstick in self.bstick_ls:
+            pass
+
 
     def update(self, values=[]):
         # Wrap following code in a try/finally to ensure cleanup functions are called
@@ -59,14 +57,14 @@ class LedBar():
         self.timestamp = t
         if delta_t > self.min_t:
             # Update each LED color in the buffer.
-            for i in range(0, LED_COUNT):
-                # Pick a color based on LED position and an offset for animation.
-                color = values[i]
 
-                # Set the LED color buffer value.
-                self.strip.setPixelColor(i, color)
-                time.sleep(1)
+            for bstick in self.bstick_ls:
+                for i in range(0, LED_COUNT):
+                    # Pick a color based on LED position and an offset for animation.
+                    color = values[i]
 
+                    # Set the LED color buffer value.
+                    bstick.setPixelColor(channel=LED_CHANNEL, index=i, hex=color)
 
 
     def finalyze(self):
