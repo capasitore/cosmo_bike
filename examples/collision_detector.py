@@ -35,7 +35,7 @@ if args["idxconfig"] == 'IDX_CONFIG_ALL':
 else:
     IDX_CONFIG = IDX_CONFIG_VEHICLES
 
-NUM_DIODES = 22
+NUM_DIODES = 8
 
 # initialize the list of class labels MobileNet SSD was trained on
 CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat",
@@ -191,18 +191,18 @@ def activate_diodes(startX, endX, w, idx):
     start_id = startX/width_per_diode
     end_id = endX/width_per_diode
     # get the diodes as tuples (i, value on/off)
-    color_diode_ls = []
-    color = get_color_for_class(idx)
-    off_color = '0x000000' #black
+    diode_ls = []
+    # color = get_color_for_class(idx)
+    # off_color = '0x000000' #black
 
     for i in range(1,NUM_DIODES + 1):
         # which diodes to activate
         if(i> start_id and i < end_id):
-            color_diode_i = color
+            diode_active = True
         else:
-            color_diode_i =  off_color
-        color_diode_ls.append(color_diode_i)
-    # print(color_diode_ls)
+            diode_active =  False
+        diode_ls.append(diode_active)
+    # print(diode_ls)
 
     #TODO send tuple_ls to diode
 
