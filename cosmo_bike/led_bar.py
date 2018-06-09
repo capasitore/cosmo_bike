@@ -8,7 +8,7 @@ LED_CHANNEL    = 0
 LED_COUNT      = 22         # How many LEDs to light.
 LED_FREQ_HZ    = 800000     # Frequency of the LED signal.  Should be 800khz or 400khz.
 LED_DMA        = 10         # DMA channel to use, can be 0-14.
-LED_GPIO       = 16         # GPIO connected to the LED signal line.  Must support PWM!
+LED_GPIO       = 18         # GPIO connected to the LED signal line.  Must support PWM!
 LED_BRIGHTNESS = 255        # Set to 0 for darkest and 255 for brightest
 LED_INVERT     = 0          # Set to 1 to invert the LED signal, good if using NPN
                             # transistor as a 3.3V->5V level converter.  Keep at 0
@@ -58,7 +58,7 @@ class LedBar():
         self.timestamp = t
         if delta_t > self.min_t:
             # Update each LED color in the buffer.
-            for i in range(LED_COUNT):
+            for i in range(0, LED_COUNT):
                 # Pick a color based on LED position and an offset for animation.
                 color = values[i]
 

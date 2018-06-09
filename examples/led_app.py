@@ -76,7 +76,7 @@ class SniffThread(Thread):
         value = 0
         while(1):
 
-            colors = lb.DOT_COLORS[value] *22
+            colors = [lb.DOT_COLORS[value]] * 22
             led_bar.update(colors)
             value = value % len(lb.DOT_COLORS)
 
