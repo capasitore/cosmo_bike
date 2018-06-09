@@ -78,7 +78,8 @@ class SniffThread(Thread):
 
             colors = [lb.DOT_COLORS[value]] * 22
             led_bar.update(colors)
-            value = value % len(lb.DOT_COLORS)
+            value = (value + 1) % len(lb.DOT_COLORS)
+
 
             # interrupt for thread
             time.sleep(2)
