@@ -1,7 +1,7 @@
 import time
 import RPi.GPIO as GPIO
 from neopixel import *
-
+import _rpi_ws281x as ws
 
 # LED configuration.
 LED_CHANNEL    = 0
@@ -35,7 +35,7 @@ class LedBar():
         # that you delete its memory by calling delete_ws2811_t when it's not needed.
         # Create NeoPixel object with appropriate configuration.
         strip = Adafruit_NeoPixel(
-            LED_COUNT, LED_GPIO, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS)
+            LED_COUNT, LED_GPIO, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS, strip_type=ws.WS2812_STRIP)
         # Intialize the library (must be called once before other functions).
         strip.begin()
         self.strip = strip

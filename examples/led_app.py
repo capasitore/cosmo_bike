@@ -64,6 +64,7 @@ def validate_response(self, resp, extra_bytes=None):
     return False
 
 led_bar = lb.LedBar()
+led_bar.set_brightness(128)
 
 
 class SniffThread(Thread):
