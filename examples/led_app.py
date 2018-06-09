@@ -4,7 +4,7 @@ import io
 from struct import *
 import time
 import RPi.GPIO as GPIO
-import _rpi_ws281x as ws
+#import _rpi_ws281x as ws
 from threading import Event , Thread
 import cosmo_bike.led_bar as lb
 
