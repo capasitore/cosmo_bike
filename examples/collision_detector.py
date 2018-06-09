@@ -6,6 +6,7 @@ import imutils
 import time
 import cv2
 
+import pygame
 
 # example run args
 # -p model/model_deploy.prototxt.txt -m model/model_deploy.caffemodel -w 600 -d True
@@ -51,6 +52,14 @@ COLORS = {2: (255,255,0),  # bicycle - lightblue
                  15: (0,255,0)  # green' - person
                  }
 
+COLORS_PYGAME = {2: [0,255,255],  # bicycle - lightblue
+                 6: [255,128,0],  # orange - bus
+                 7: [255,0,0],  # red - car
+                 14: [255,255,0],  # yellow - motorbike
+                 15: [0,255,0]  # green' - person
+                 }
+
+
 
 
 # idx = class_label
@@ -74,6 +83,10 @@ def vid_stream():
     time.sleep(2.0)
     fps = FPS().start()
     while (True):
+        # pygame reset screen to black
+        screen.fill((0, 0, 0))
+
+
         # max width of 600 pixel for video in
         f = stream.read()
         f = imutils.resize(f, width=args["width"])
@@ -202,7 +215,12 @@ def activate_diodes(startX, endX, w, idx):
         else:
             diode_active =  False
         diode_ls.append(diode_active)
-    # print(diode_ls)
+    # pygame
+    for di in diode_ls:
+        # (left, top, width, height)
+        pygame.draw.rect(screen, COLORS_PYGAME[idx], [startX, 0, int(round(width_per_diode)), 480], int(round(width_per_diode)))
+    pygame.display.flip()
+
 
     #TODO send tuple_ls to diode
 
@@ -263,7 +281,13 @@ def img_classify(img):
     cv2.destroyAllWindows()
 
 
-
+pygame.init()
+screen = pygame.display.set_mode([640, 480])
+# screen = pygame.display.set_mode(pygame.FULLSCREEN)
+pygame.display.toggle_fullscreen()
+screen.fill([0, 0, 0])
 vid_stream()
+
+
 # img = '/Users/andreas/Documents/HackBike/test_images/test1.jpg'
 # img_classify(img)
