@@ -41,7 +41,6 @@ class LedBar():
 
 
     def set_brightness(self, value):
-        self.strip.setBrightness(value)
         for bstick in self.bstick_ls:
             pass
 
