@@ -64,6 +64,7 @@ class LedBar():
 
                 # Set the LED color buffer value.
                 self.strip.setPixelColor(i, color)
+                print(values)
 
 
 
