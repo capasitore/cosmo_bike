@@ -24,8 +24,10 @@ import cosmo_bike.utils as utils
 
 class BikeComm():
     def __init__(self):
-        self.serial = None
+        self.motor_comm = None
+        self.screen_comm = None
         self.quiet = True
+
 
     def __call__(self):
         return self
@@ -36,46 +38,79 @@ class BikeComm():
 
     def connect(self, port=''):
         # connect to serial port
-        ser = serial.Serial(port, 19200, timeout=1)
-        self.serial = ser
+        self.screen_comm = serial.Serial(
+            port='/dev/ttyUSB1',
+            baudrate=1200,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            bytesize=serial.EIGHTBITS,
+            timeout=0.1
+        )
+
+        self.motor_comm = serial.Serial(
+            port='/dev/ttyAMA0',
+            baudrate=1200,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            bytesize=serial.EIGHTBITS,
+            timeout=0.1
+        )
 
         if not self.quiet:
             self._debug(
                 '--- Serial configuration {p.name}  {p.baudrate},{p.bytesize},'
-                '{p.parity},{p.stopbits} ---\n'.format(p=self.serial))
+                '{p.parity},{p.stopbits} ---\n'.format(p=self.screen_comm))
+            self._debug(
+                '--- Serial configuration {p.name}  {p.baudrate},{p.bytesize},'
+                '{p.parity},{p.stopbits} ---\n'.format(p=self.screen_comm))
 
         try:
-            ser.open()
+            self.screen_comm.open()
+        except serial.SerialException as e:
+            sys.stderr.write('Could not open serial port {}: {}\n'.format(ser.name, e))
+            sys.exit(1)
+
+        try:
+            self.motor_comm.open()
         except serial.SerialException as e:
             sys.stderr.write('Could not open serial port {}: {}\n'.format(ser.name, e))
             sys.exit(1)
 
     def disconnect(self):
         sys.stderr.write('\n--- exit ---\n')
-        self.serial.close()
+        self.screen_comm.close()
+        self.motor_comm.close()
         # TODO: how to stop it
 
     def write_bytes(self, byte_string, use_checksum=True):
         """Write bytes (already encoded)"""
         data = str(byte_string)
+        if isinstance(byte_string, str):
+            data = utils.string_as_bytes(byte_string)
+        elif isinstance(byte_string, bytearray):
+            data = bytearray(byte_string)
+        else:
+            raise ValueError
+
         n = 0
         if use_checksum:
             data += utils.calc_checksum(data)
         # retry 3 times
         for i in range(0, 3):
-            n = self.serial.write(byte_string + utils.calc_checksum(byte_string))
+            self._debug(">>" + data.hex())
+            n = self.serial.write(data)
             if n == len(data):
                 break
         if n is not len(data):
             return 0
         return n
 
-    def read_bytes_with_checksum(self):
+    def read_bytes_with_checksum(self, ser):
         """read bytes (already encoded)"""
         resp = []
         data = []
         try:
-            resp = self.serial.read(100)
+            resp = ser.read(100)
             _data = '0x20' + resp[:2]
             ch = utils.calc_checksum(_data)
             # validate checksum
@@ -85,26 +120,29 @@ class BikeComm():
         except serial.SerialTimeoutException:
             resp = None
         finally:
-            self.serial.flush()
+            ser.flush()
         return resp
 
     def speed(self):
-        cmd = '\x11\x20'
+        cmd = b'\x11\x20'
         speed = 0
         if self.write_bytes(cmd, False):
             bytes = self.read_bytes_with_checksum()
+            self._debug("<<" + bytes.hex())
             # get unsigned integer 16-bit
             values = unpack('H', bytes)
             #interpolate
             speed = values[0] * 33.0 / 256.0
+            self._debug("<< speed: " + speed)
+
         return speed
 
     def set_gear(self, level= 0):
         gears = ['\x00', '\x0b', '\x0d', '\x15', '\x17', '\x03']
         if level >= len(gears):
             return
-        gear = gears[level]
-        cmd = '\x16\x0b' + gears[level]
+        gear = utils.string_as_bytes(gears[level])
+        cmd = b'\x16\x0b' + gear
         if self.write_bytes(cmd, True):
             # it does not receives a response
             pass
@@ -120,5 +158,12 @@ class BikeComm():
             level = values[0]
         return level
 
+
+    def set_lights(self, on: bool):
+        cmd = '\x16\x1A'
+        cmd += ['\xf0' if on else '\xf1']
+        if self.write_bytes(cmd, False):
+            # it does not receives a response
+            pass
 
 
