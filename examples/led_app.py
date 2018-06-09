@@ -84,7 +84,7 @@ class SniffThread(Thread):
 
 
             # interrupt for thread
-            time.sleep(10)
+            time.sleep(1)
 
 
 

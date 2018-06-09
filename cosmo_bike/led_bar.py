@@ -1,4 +1,5 @@
 import time
+import datetime
 import RPi.GPIO as GPIO
 from neopixel import *
 import _rpi_ws281x as ws
@@ -39,8 +40,8 @@ class LedBar():
         # Intialize the library (must be called once before other functions).
         strip.begin()
         self.strip = strip
-        self.timestamp = int(round(time.time() * 1000))
-        self.min_t = 250
+        self.timestamp = datetime.datetime.utcnow()
+        self.min_t = 250 # millisec
 
 
 
@@ -53,8 +54,8 @@ class LedBar():
         if len(values) != LED_COUNT:
             raise ValueError
 
-        t = int(round(time.time() * 1000))
-        delta_t = t - self.timestamp
+        t = datetime.datetime.utcnow()
+        delta_t = (t - self.timestamp).microseconds / 1000
         self.timestamp = t
         if delta_t > self.min_t:
             # Update each LED color in the buffer.
@@ -64,6 +65,7 @@ class LedBar():
 
                 # Set the LED color buffer value.
                 self.strip.setPixelColor(i, color)
+                time.sleep(1)
 
 
 

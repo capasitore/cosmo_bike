@@ -4,9 +4,9 @@ import io
 from struct import *
 import time
 import RPi.GPIO as GPIO
-import _rpi_ws281x as ws
+#import _rpi_ws281x as ws
 from threading import Event , Thread
-import cosmo_bike.led_bar as lb
+# import cosmo_bike.led_bar as lb
 
 
 
@@ -136,7 +136,7 @@ def parse_data(send_data, rcv_data):
                 bike_status['battery'] = values[0]
 
 
-led_bar = lb.LedBar()
+# led_bar = lb.LedBar()
 
 
 class SniffThread(Thread):
@@ -163,7 +163,6 @@ class SniffThread(Thread):
             while moreBytes:
                 motordata = motordata + motor.read(moreBytes)
                 moreBytes = motor.inWaiting()
-            print(moreBytes)
             # Write to screen
             screen.write(motordata)
             print("Motor Data   : " + repr(motordata))
@@ -173,9 +172,9 @@ class SniffThread(Thread):
             parse_data(motordata, screendata)
             update()
 
-            colors = lb.DOT_COLORS[value] *22
-            led_bar.update(colors)
-            value = value % len(lb.DOT_COLORS)
+            #colors = lb.DOT_COLORS[value] *22
+            #led_bar.update(colors)
+            #value = value % len(lb.DOT_COLORS)
 
             # interrupt for thread
             if interrupt == 1:
