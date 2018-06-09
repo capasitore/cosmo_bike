@@ -105,7 +105,7 @@ def update():
     if bike_control['gear'] != bike_status['gear']:
         set_gear(bike_control['gear'])
 
-def set_ligths(on:bool):
+def set_ligths(on):
     screen.write(bytes(on))
     cmd = b'\x16\x1A'
     cmd += ['\xf0' if on else '\xf1']
