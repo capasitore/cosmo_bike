@@ -127,7 +127,7 @@ def vid_stream():
         # update the FPS counter
         fps.update()
         fps.stop()
-        print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
+        # print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
 
     # do a bit of cleanup
     cv2.destroyAllWindows()
@@ -191,17 +191,18 @@ def activate_diodes(startX, endX, w, idx):
     start_id = startX/width_per_diode
     end_id = endX/width_per_diode
     # get the diodes as tuples (i, value on/off)
-    tuple_ls = []
+    color_diode_ls = []
     color = get_color_for_class(idx)
     off_color = '0x000000' #black
 
     for i in range(1,NUM_DIODES + 1):
         # which diodes to activate
         if(i> start_id and i < end_id):
-            tuple = (i, color)
+            color_diode_i = color
         else:
-            tuple = (i, off_color)
-        tuple_ls.append(tuple)
+            color_diode_i =  off_color
+        color_diode_ls.append(color_diode_i)
+    # print(color_diode_ls)
 
     #TODO send tuple_ls to diode
 
@@ -223,28 +224,33 @@ def img_classify(img):
 
         # loop over the detections
         for i in np.arange(0, detections.shape[2]):
-            # extract the confidence (i.e., probability) associated with
-            # the prediction
+            # extract the confidence (probability) of nn:s prediction
             confidence = detections[0, 0, i, 2]
 
-            # filter out weak detections
+            # filter out weak detections (unlikely)
             if confidence > args["confidence"]:
-                # extract the index of the class label from the
-                # `detections`, then compute the (x, y)-coordinates of
-                # the bounding box for the object
+                # extract the index of the class label
+                # (x, y)-coordinates of the bounding box for the object
                 idx = int(detections[0, 0, i, 1])
                 box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
                 (startX, startY, endX, endY) = box.astype("int")
 
-                # draw the prediction on the frame
-                label = "{}: {:.2f}%".format(CLASSES[idx],
-                                             confidence * 100)
-                cv2.rectangle(f, (startX, startY), (endX, endY),
-                              COLORS[idx], 2)
-                y = startY - 15 if startY - 15 > 15 else startY + 15
-                cv2.putText(f, label, (startX, y),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLORS[idx], 2)
+                # draw_prediction(confidence, endX, endY, f, idx, startX, startY)
 
+            # how wide is classified object
+            obj_width = endX - startX
+            obj_height = endY - startY
+
+            # if classified object is interesting
+            # if idx == 2 or idx == 6 or idx == 7 or idx == 14 or idx==15:
+            if idx in IDX_CONFIG:
+                # draw the prediction on the streams cur_frame
+                draw_prediction(confidence, endX, endY, f, idx, startX, startY)
+                # activate_diodes(startX, endX, w, idx)
+
+                if obj_width >= 1 / 4 * w:
+                    activate_diodes(startX, endX, w, idx)
+                    draw_warning(f)
 
         # show the output frame
         cv2.imshow("Output Frame", f)
@@ -259,3 +265,5 @@ def img_classify(img):
 
 
 vid_stream()
+# img = '/Users/andreas/Documents/HackBike/test_images/test1.jpg'
+# img_classify(img)
